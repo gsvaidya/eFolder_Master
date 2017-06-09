@@ -1,0 +1,151 @@
+import java.io.*;
+import java.net.InterfaceAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.UnknownHostException;
+
+public class BootStrapServer {
+
+    private static volatile boolean flag = false;
+    private static volatile String value = null;
+    private static volatile String responseFromWorker = "";
+    private static volatile int num_docs = 0;
+    private static volatile int counter = 0;
+    private static String[] filepaths = new String[]{""};
+    private static String fullfile = "";
+    private static String searchQuery = "";
+
+    private static volatile int globalFileIndex = 0;
+
+    public static void main(String[] args) throws IOException {
+
+        startServer();
+
+        /*while(flag == false)
+        {
+            //Do nothing, wait for the client connection to be successful
+        }
+
+        for(int i=0;i<num_docs;i++){
+            startSender();*/
+    }
+
+
+    public static void startSender() {
+        (new Thread() {
+            @Override
+            public void run() {
+                try {
+
+                    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+                    System.out.println("Please provide a port number(60011)");
+                    int port_num = Integer.parseInt(br.readLine());
+
+                    Socket s = new Socket("localhost", port_num);
+                    BufferedWriter out = new BufferedWriter(
+                            new OutputStreamWriter(s.getOutputStream()));
+                    System.out.println("Sending from client part of BS");
+
+                    String[] arr = fullfile.split(",");
+                    String sendToWorker = arr[globalFileIndex] + " " + searchQuery;
+                    globalFileIndex++;
+
+                    out.write(sendToWorker);
+                    out.newLine();
+                    out.flush();
+
+                    BufferedReader in = new BufferedReader(
+                            new InputStreamReader(s.getInputStream()));
+                    String line = null;
+                    while ((line = in.readLine()) != null) {
+                        responseFromWorker = responseFromWorker + line;
+                        System.out.println("response from worker is in BS-- " + line);
+                        counter++;
+                        System.out.println("Counter is " + counter);
+                    }
+
+                    //s.close();
+                } catch (UnknownHostException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+            }
+        }).start();
+    }
+
+    public static void startServer() {
+        (new Thread() {
+            @Override
+            public void run() {
+                BufferedWriter out = null;
+                ServerSocket ss = null;
+                while (true)
+                {
+                    try {
+                        if (ss == null)
+                        ss = new ServerSocket(60010);
+                        System.out.println("Server side ON - waiting for client to connect.....");
+                        Socket s = ss.accept();
+
+                        BufferedReader in = new BufferedReader(
+                                new InputStreamReader(s.getInputStream()));
+
+
+                        String line = null;
+                        while ((line = in.readLine()) != null) {
+                            System.out.println(line+" reached Server side of BS");
+                            value = line;
+                            String[] inFromClient = value.split(":");
+                            /*num_docs = QueryGenerator.getNumOfDocuments(inFromClient);
+                            filepaths = QueryGenerator.getFilePath(inFromClient);
+                            searchQuery = QueryGenerator.getSearchQuery(inFromClient);*/
+                            num_docs = Integer.parseInt(inFromClient[0]);
+                            searchQuery = inFromClient[1];
+                            //filepaths = inFromClient[2];
+                            fullfile = inFromClient[2];
+
+                            for (int i=0; i<num_docs; i++)
+                            {
+                                startSender();
+                            }
+                        }
+                        flag = true;
+                        line = null;
+                        value = null;
+
+                        while (counter < 2)
+                        {
+
+                        }
+                        System.out.println("Srijeet heredddddddddddddddddddddddddd");
+                        out = new BufferedWriter(new OutputStreamWriter(s.getOutputStream()));
+
+                        out.write(responseFromWorker);
+
+                        counter = 0;
+                        responseFromWorker = "";
+                        globalFileIndex = 0;
+                        //s.close();
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    if (out != null)
+                    {
+                        try
+                        {
+                            out.flush();
+                            out.close();
+                        }
+                        catch (IOException e)
+                        {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        }).start();
+    }
+}

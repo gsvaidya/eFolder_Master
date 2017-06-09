@@ -1,0 +1,1 @@
+This file contains names of animals like lion , tiger , zebra , elephant and dog. This is also a sample file for my project.
